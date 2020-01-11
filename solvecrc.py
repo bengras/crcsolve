@@ -1,9 +1,10 @@
 from z3 import *
 
 class CrcInstance():
-    def __init__(self, crclen=16, messagewords=1, given_message_bytes=None, given_crcstart=None, given_crcxor=None, given_crcresult=None, given_polynomial=None, swapbytes=False):
+    def __init__(self, lsbfirst=True, crclen=16, messagewords=1, given_message_bytes=None, given_crcstart=None, given_crcxor=None, given_crcresult=None, given_polynomial=None, swapbytes=False):
         self.s = Solver()
         assert crclen % 8 == 0
+        self.lsbfirst = lsbfirst
         self.crclen_bits=crclen
         self.crclen_bytes = crclen//8
         self.crclen_hexits = crclen//4
@@ -25,7 +26,8 @@ class CrcInstance():
                 n+=1
         if given_polynomial != None:
             self.s.add(self.polynomial == given_polynomial)
-        self.crcresult = BitVec('crcresult', crclen)
+
+        self.crcresult = BitVec('crcresult', self.crclen_bits)
         self.s.add(self.crcresult == self.z3crc())
         if given_crcresult != None:
             self.s.add(self.crcresult == given_crcresult)
@@ -33,9 +35,17 @@ class CrcInstance():
         crc = self.crcstart
         for c in self.message:
             for block in range(self.crclen_bits-8, -1, -8):
-                crc ^= LShR(c, block) & 0xFF
+                if self.lsbfirst:
+                    crc ^= LShR(c, block) & 0xFF
+                else:
+                    raise Exception('not implemented')
                 for i in range(8):
-                    crc = If(crc & 1 == BitVecVal(1, self.crclen_bits), LShR(crc, 1) ^ self.polynomial, LShR(crc, 1))
+                    if self.lsbfirst:
+                        mask=1
+                        crc = If(crc & mask == BitVecVal(mask, self.crclen_bits), LShR(crc, 1) ^ self.polynomial, LShR(crc, 1))
+                    else:
+                        mask=1 << self.crclen_bits-1
+                        crc = If(crc & mask == BitVecVal(mask, self.crclen_bits), (crc >> 1) ^ self.polynomial, crc >> 1)
         return crc ^ self.crcxor
     def check(self):
         print(self.s.check())
