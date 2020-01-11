@@ -3,6 +3,7 @@
 import binascii
 import sys
 import solvecrc
+import crctest
 
 inputs = b"""
  0: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 00 ff 01 03 00 00 00 00 ff 00 00 00 00 ff e8 19
@@ -31,8 +32,9 @@ inputs = b"""
 # i used https://www.lammertbies.nl/comm/info/crc-calculation to generate some test vectors
 # i used the c code https://github.com/lammertb/libcrc to find all the parameters
 crc_presets = {
-        'CRC8':               {'crclen':  8, 'given_polynomial':       0x1d, 'given_crcstart':       0xff, 'given_crcxor':       0xff, 'swapbytes': False, 'lsbfirst': True},
-        'CRC8H2F':            {'crclen':  8, 'given_polynomial':       0x2f, 'given_crcstart':       0xff, 'given_crcxor':       0xff, 'swapbytes': False, 'lsbfirst': True},
+#        'CRC8':               {'crclen':  8, 'given_polynomial':       0x1d, 'given_crcstart':       0xff, 'given_crcxor':       0xff, 'swapbytes': False, 'lsbfirst': True},
+#        'CRC8H2F':            {'crclen':  8, 'given_polynomial':       0x2f, 'given_crcstart':       0xff, 'given_crcxor':       0xff, 'swapbytes': False, 'lsbfirst': True},
+        'crc8':               {'crclen':  8, 'given_polynomial':       0x07, 'given_crcstart':       0x00, 'given_crcxor':       0x00, 'swapbytes': False, 'lsbfirst': True},
         'crc16':              {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': True},
         'crc16-modbus':       {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': True},
         'crc16-sick':         {'crclen': 16, 'given_polynomial':     0x8005, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': True},
@@ -47,8 +49,7 @@ crc_presets = {
 def hexdump(arr):
     return ' '.join(["%02x" % b for b in arr])
 
-for message in [[0,0,0,0]]:
-    print('message %s' % hexdump(message))
+for message in [[0,0,0,0], [0,0,0,1]]:
     for crc_preset in crc_presets:
         config = crc_presets[crc_preset]
         crclen_bits=config['crclen']
@@ -57,7 +58,8 @@ for message in [[0,0,0,0]]:
         if len(message) % crclen_bytes != 0:
             continue
         messagewords = len(message) // crclen_bytes
-        crctest = solvecrc.CrcInstance(given_message_bytes=message, messagewords=messagewords, **config)
-        crctest.results(crc_preset)
+        crctest_cl = solvecrc.CrcInstance(given_message_bytes=message, messagewords=messagewords, **config)
+        crcval = crctest_cl.results(crc_preset)
+        print('%-20s message %s mycrc %8x  testcrc %8x' % (crc_preset, hexdump(message), crcval, crctest.crctest(crc_preset, bytes(message))))
     print()
 

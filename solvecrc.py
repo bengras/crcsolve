@@ -57,4 +57,5 @@ class CrcInstance():
         m = self.model()
         polynomial_value=m[self.polynomial].as_long()
         crcresult_value=m[self.crcresult].as_long()
+        return crcresult_value
         print('{title:20s} polynomial: 0x{num:0{width}x} crc result: 0x{crcnum:0{crcwidth}x}'.format(title=title,num=polynomial_value, width=self.crclen_hexits, crcnum=crcresult_value, crcwidth=self.crclen_hexits))

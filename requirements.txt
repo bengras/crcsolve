@@ -1,1 +1,3 @@
 z3-solver
+PyCRC
+crc8
