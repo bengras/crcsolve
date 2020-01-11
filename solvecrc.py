@@ -35,10 +35,11 @@ class CrcInstance():
         crc = self.crcstart
         for c in self.message:
             for block in range(self.crclen_bits-8, -1, -8):
+                message_byte = LShR(c, block) & 0xFF
                 if self.lsbfirst:
-                    crc ^= LShR(c, block) & 0xFF
+                    crc ^= message_byte
                 else:
-                    raise Exception('not implemented')
+                    crc ^= message_byte << (self.crclen_bits-8)
                 for i in range(8):
                     if self.lsbfirst:
                         mask=1
