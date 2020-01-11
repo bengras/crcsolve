@@ -1,9 +1,8 @@
 #!/usr/bin/python3
 
-import crcmod
-import libscrc
 import binascii
 import sys
+from z3 import *
 
 inputs = b"""
  0: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 00 ff 01 03 00 00 00 00 ff 00 00 00 00 ff e8 19
@@ -29,63 +28,79 @@ inputs = b"""
 20: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 14 ff 01 03 00 00 00 00 ff 00 00 00 00 ff 13 6f
 """
 
+class CrcInstance():
+    def __init__(self, crclen=16, messagewords=1, given_message_bytes=None, given_crcstart=None, given_crcxor=None, given_crcresult=None, given_polynomial=None, swapbytes=False):
+        self.s = Solver()
+        assert crclen % 8 == 0
+        self.crclen_bits=crclen
+        self.crclen_bytes = crclen//8
+        self.crclen_hexits = crclen//4
+        self.message = [BitVec('messageword%d-%03d' % (crclen,i),crclen) for i in range(messagewords)]
+        self.polynomial = BitVec('polynomial',crclen)
+        self.crcstart = BitVec('crcstart',crclen)
+        self.crcxor = BitVec('crcxor',crclen)
+        if given_crcstart != None:
+            self.s.add(self.crcstart == given_crcstart)
+        if given_crcxor != None:
+            self.s.add(self.crcxor == given_crcxor)
+        if given_message_bytes != None:
+            assert len(given_message_bytes) == self.crclen_bytes * messagewords
+            n=0
+            for word in range(0,len(given_message_bytes),self.crclen_bytes):
+                worddata=given_message_bytes[word:word+self.crclen_bytes]
+                assert len(worddata) == self.crclen_bytes
+                self.s.add(self.message[n] == 0)
+                n+=1
+        if given_polynomial != None:
+            self.s.add(self.polynomial == given_polynomial)
+        self.crcresult = BitVec('crcresult', crclen)
+        self.s.add(self.crcresult == self.z3crc())
+        if given_crcresult != None:
+            self.s.add(self.crcresult == given_crcresult)
+    def z3crc(self):
+        crc = self.crcstart
+        for c in self.message:
+            for block in range(self.crclen_bits-8, -1, -8):
+                crc ^= LShR(c, block) & 0xFF
+                for i in range(8):
+                    crc = If(crc & 1 == BitVecVal(1, self.crclen_bits), LShR(crc, 1) ^ self.polynomial, LShR(crc, 1))
+        return crc ^ self.crcxor
+    def check(self):
+        print(self.s.check())
+    def model(self):
+        return self.s.model()
+    def results(self, title=''):
+        checkresult=self.check()
+        m = self.model()
+        polynomial_value=m[self.polynomial].as_long()
+        crcresult_value=m[self.crcresult].as_long()
+        print('{title:20s} polynomial: 0x{num:0{width}x} crc result: 0x{crcnum:0{crcwidth}x}'.format(title=title,num=polynomial_value, width=self.crclen_hexits, crcnum=crcresult_value, crcwidth=self.crclen_hexits))
 
-class DataCrc():
-    def getbytes(self, line):
-        return bytearray([int(x, 16) for x in line])
-    def __init__(self, inputline, crclen=2):
-        assert crclen > 0
-        assert crclen <= 4
-        self.crclen = crclen
-        inputs_bytes = inputline.split()[1:]
-        inputs_bytes = self.getbytes(inputs_bytes) 
-        self.framebytes = inputs_bytes
-        self.databytes = self.framebytes[0:-crclen]
-        self.crcbytes = self.framebytes[-crclen:]
-        self.line = inputline
-        assert len(self.framebytes) == len(self.databytes) + len(self.crcbytes)
-        assert len(self.crcbytes) == crclen
-    def xor(self,a,b):
-        return bytearray([a ^ b for (a, b) in zip(a, b)])
-    def __add__(self,b):
-        assert self.crclen == b.crclen
-        addition = DataCrc(self.line, self.crclen)
-        addition.framebytes = self.xor(self.framebytes, b.framebytes)
-        addition.databytes = self.xor(self.databytes, b.databytes)
-        addition.crcbytes = self.xor(self.crcbytes, b.crcbytes)
-        return addition
-    def hex(self,inbytes):
-        hexstr=["%02x" % (inbyte,) for inbyte in inbytes]
-        return ' '.join(hexstr)
-    def __str__(self):
-        return "data %s crc %s crclen %d" % (self.hex(self.databytes), self.hex(self.crcbytes), self.crclen)
-    def __eq__(self,b):
-        return self.framebytes==b.framebytes and self.crclen == b.crclen
-    def __hash__(self):
-        return hash(self.__str__())
+# i used https://www.lammertbies.nl/comm/info/crc-calculation to generate some test vectors
+# i used the c code https://github.com/lammertb/libcrc to find all the parameters
+crc_presets = {
+        'crc16':              {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False},
+        'crc16-modbus':       {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False},
+        'crc16-sick':         {'crclen': 16, 'given_polynomial':     0x8005, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False},
+        'crc-ccitt-xmodem':   {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False},
+        'crc-ccitt-ffff':     {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False},
+        'crc-ccitt-1d0f':     {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0x1d0f, 'given_crcxor':     0x0000, 'swapbytes': False},
+        'crc-ccitt-kermit':   {'crclen': 16, 'given_polynomial':     0x8408, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': True},
+        'crc-dnp':            {'crclen': 16, 'given_polynomial':     0xA6BC, 'given_crcstart':     0x0000, 'given_crcxor':     0xffff, 'swapbytes': True},
+        'crc-32':             {'crclen': 32, 'given_polynomial': 0xEDB88320, 'given_crcstart': 0xFFFFFFFF, 'given_crcxor': 0xffffffff, 'swapbytes': False},
+}
 
-class DataCrcGroup():
-    def __init__(self,crclen=2):
-        self.set=set()
-        assert crclen > 0
-        assert crclen <= 4
-        self.crclen=crclen
-    def add(self, line):
-        newcrc=DataCrc(line, self.crclen)
-        if newcrc in self.set:
-            return
-        additions=set()
-        for k in self.set:
-            additions.add(k+newcrc)
-        self.set |= additions
-        self.add(newcrc)
-        print('closure added %d plus new' % (len(additions)))
+for message in [[1,1]]:
+    print('message %s' % message)
+    for crc_preset in crc_presets:
+        config = crc_presets[crc_preset]
+        crclen_bits=config['crclen']
+        assert crclen_bits % 8 == 0
+        crclen_bytes=config['crclen']//8
+        if len(message) % crclen_bytes != 0:
+            continue
+        messagewords = len(message) // crclen_bytes
+        crctest = CrcInstance(given_message_bytes=message, messagewords=messagewords, **config)
+        crctest.results(crc_preset)
+    print()
 
-group=DataCrcGroup()
-
-lines = inputs.split(b'\n')
-
-for line in lines:
-    if len(line) < 10:
-        continue
-    group.add(line)
