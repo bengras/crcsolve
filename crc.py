@@ -34,32 +34,26 @@ inputs = b"""
 crc_presets = {
 #        'CRC8':               {'crclen':  8, 'given_polynomial':       0x1d, 'given_crcstart':       0xff, 'given_crcxor':       0xff, 'swapbytes': False, 'lsbfirst': True},
 #        'CRC8H2F':            {'crclen':  8, 'given_polynomial':       0x2f, 'given_crcstart':       0xff, 'given_crcxor':       0xff, 'swapbytes': False, 'lsbfirst': True},
-        'crc8':               {'crclen':  8, 'given_polynomial':       0x07, 'given_crcstart':       0x00, 'given_crcxor':       0x00, 'swapbytes': False, 'lsbfirst': True},
-        'crc16':              {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': True},
-        'crc16-modbus':       {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': True},
+#        'crc8':               {'crclen':  8, 'given_polynomial':       0x07, 'given_crcstart':       0x00, 'given_crcxor':       0x00, 'swapbytes': False, 'lsbfirst': True},
+#        'crc16':              {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': True},
+#        'crc16-modbus':       {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': True},
         'crc16-sick':         {'crclen': 16, 'given_polynomial':     0x8005, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': True},
-        'crc-ccitt-xmodem':   {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': False},
-        'crc-ccitt-ffff':     {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': False},
-        'crc-ccitt-1d0f':     {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0x1d0f, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': False},
-        'crc-ccitt-kermit':   {'crclen': 16, 'given_polynomial':     0x8408, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': True,  'lsbfirst': False},
-        'crc-dnp':            {'crclen': 16, 'given_polynomial':     0xA6BC, 'given_crcstart':     0x0000, 'given_crcxor':     0xffff, 'swapbytes': True,  'lsbfirst': True},
-        'crc-32':             {'crclen': 32, 'given_polynomial': 0xEDB88320, 'given_crcstart': 0xFFFFFFFF, 'given_crcxor': 0xffffffff, 'swapbytes': False, 'lsbfirst': True},
+#        'crc-ccitt-xmodem':   {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': False},
+#        'crc-ccitt-ffff':     {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': False},
+#        'crc-ccitt-1d0f':     {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0x1d0f, 'given_crcxor':     0x0000, 'swapbytes': False, 'lsbfirst': False},
+#        'crc-ccitt-kermit':   {'crclen': 16, 'given_polynomial':     0x8408, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': True,  'lsbfirst': False},
+#        'crc-dnp':            {'crclen': 16, 'given_polynomial':     0xA6BC, 'given_crcstart':     0x0000, 'given_crcxor':     0xffff, 'swapbytes': True,  'lsbfirst': True},
+#        'crc-32':             {'crclen': 32, 'given_polynomial': 0xEDB88320, 'given_crcstart': 0xFFFFFFFF, 'given_crcxor': 0xffffffff, 'swapbytes': False, 'lsbfirst': True},
 }
 
 def hexdump(arr):
     return ' '.join(["%02x" % b for b in arr])
 
-for message in [[0,0,0,0], [0,0,0,1]]:
+for message in [[0x80]]:
     for crc_preset in crc_presets:
         config = crc_presets[crc_preset]
-        crclen_bits=config['crclen']
-        assert crclen_bits % 8 == 0
-        crclen_bytes=config['crclen']//8
-        if len(message) % crclen_bytes != 0:
-            continue
-        messagewords = len(message) // crclen_bytes
-        crctest_cl = solvecrc.CrcInstance(given_message_bytes=message, messagewords=messagewords, **config)
-        crcval = crctest_cl.results(crc_preset)
+        crctest_cl = solvecrc.CrcInstance(given_message_bytes=message, n_messagebytes=len(message), **config)
+        crcval = crctest_cl.results(crc_preset, full=True)
         print('%-20s message %s mycrc %8x  testcrc %8x' % (crc_preset, hexdump(message), crcval, crctest.crctest(crc_preset, bytes(message))))
     print()
 
