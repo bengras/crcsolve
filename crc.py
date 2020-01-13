@@ -32,9 +32,6 @@ inputs = b"""
 # i used https://www.lammertbies.nl/comm/info/crc-calculation to generate some test vectors
 # i used the c code https://github.com/lammertb/libcrc to find all the parameters
 crc_presets = {
-#        'CRC8':               {'crclen':  8, 'given_polynomial':       0x1d, 'given_crcstart':       0xff, 'given_crcxor':       0xff, 'swapbytes': False, 'databyte_lsbfirst': True},
-#        'CRC8H2F':            {'crclen':  8, 'given_polynomial':       0x2f, 'given_crcstart':       0xff, 'given_crcxor':       0xff, 'swapbytes': False, 'databyte_lsbfirst': True},
-#        'crc8':               {'crclen':  8, 'given_polynomial':       0x07, 'given_crcstart':       0x00, 'given_crcxor':       0x00, 'swapbytes': False, 'databyte_lsbfirst': True},
         'crc16':              {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True },
 'crc16-modbus':       {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True },
 #        'crc16-sick':         {'crclen': 16, 'given_polynomial':     0x8005, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': False, 'zeropad': False, 'add_message_bytewise': True},
