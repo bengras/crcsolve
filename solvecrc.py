@@ -29,10 +29,15 @@ class CrcInstance():
         if given_polynomial != None:
             self.s.add(self.polynomial == given_polynomial)
 
+        self.crcresult_var = BitVec('crcresult_var', self.crclen_bits)
         self.crcresult = BitVec('crcresult', self.crclen_bits)
-        self.s.add(self.crcresult == self.z3crc(add_message_bytewise))
+        self.s.add(self.crcresult_var == self.z3crc(add_message_bytewise))
+        if swapbytes:
+            assert crclen == 16
+            self.crcresult_var = (self.crcresult_var << 8) | LShR(self.crcresult_var, 8)
+        self.s.add(self.crcresult_var == self.crcresult)
         if given_crcresult != None:
-            self.s.add(self.crcresult == given_crcresult)
+            self.s.add(self.crcresult_var == given_crcresult)
     def z3crc(self, add_message_bytewise):
         crc = self.crcstart
         bits=0
