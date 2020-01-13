@@ -34,12 +34,11 @@ inputs = b"""
 crc_presets = {
         'crc16':              {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True },
 'crc16-modbus':       {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True },
-#        'crc16-sick':         {'crclen': 16, 'given_polynomial':     0x8005, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': False, 'zeropad': False, 'add_message_bytewise': True},
 'crc-ccitt-xmodem':   {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': False, 'zeropad': False, 'add_message_bytewise': True},
 'crc-ccitt-ffff/nopad':     {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': False, 'zeropad': False},
 'crc-ccitt-ffff/pad-bitwise':       {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': False, 'zeropad': True, 'add_message_bytewise': False},
 'crc-ccitt-1d0f':     {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0x1d0f, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': False, 'zeropad': False},
-#        'crc-ccitt-kermit':   {'crclen': 16, 'given_polynomial':     0x8408, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': True,  'databyte_lsbfirst': True, 'databyte_lsbfirst': False, 'zeropad': False, 'add_message_bytewise': True},
+        'crc-ccitt-kermit':   {'crclen': 16, 'given_polynomial':     0x8408, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': True,  'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True},
 'crc-dnp':            {'crclen': 16, 'given_polynomial':     0xA6BC, 'given_crcstart':     0x0000, 'given_crcxor':     0xffff, 'swapbytes': True,  'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True},
 'crc-32':             {'crclen': 32, 'given_polynomial': 0xEDB88320, 'given_crcstart': 0xFFFFFFFF, 'given_crcxor': 0xffffffff, 'swapbytes': False, 'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True },
 }
