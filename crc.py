@@ -81,6 +81,15 @@ def do_test(crclen,polynomial,crcstart,crcxor,swapbytes,lsbfirst,zeropad,bytewis
     polynomial_value, crcstart_value, crcxor_value, crcresults = instances.results()
     print('results: polynomial %x, crcstart %x, crcxor %x, crc values %s' % (polynomial_value, crcstart_value, crcxor_value, hexdump(crcresults)))
 
+    print('now doing reverse mode')
+    instances=solvecrc.CrcInstances(databyte_lsbfirst=lsbfirst, crclen=crclen, given_crcstart=crcstart, given_crcxor=crcxor, swapbytes=swapbytes, zeropad=zeropad, add_message_bytewise=bytewise)
+    print('adding instances (reverse)')
+    for msg,realcrc in zip(messages,crcresults):
+        instances.add_instance(given_message_bytes=msg, n_messagebytes=len(msg), given_crcresult=realcrc)
+    print('adding instances done; getting results (reverse)')
+    solved_polynomial_value, crcstart_value, crcxor_value, crcresults = instances.results()
+    print('results: polynomial %x, crcstart %x, crcxor %x, crc values %s' % (solved_polynomial_value, crcstart_value, crcxor_value, hexdump(crcresults)))
+
 for crclen, polynomial in [ (16, 0xa001), (16, 0x1021), (16, 0x8408), (16,0xa6bc), (32, 0xEDB88320)]:
     for crcstart in [0, (1 << crclen)-1, 0x1d0f, ]:
         for crcxor in [0, (1 << crclen)-1, 0x1d0f, ]:
