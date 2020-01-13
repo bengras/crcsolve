@@ -1,5 +1,8 @@
 from z3 import *
 
+class Nosolution(Exception):
+    pass
+
 class CrcInstances():
     def __init__(self,
             databyte_lsbfirst=True, crclen=16, given_crcstart=None, given_crcxor=None, given_polynomial=None, swapbytes=False, zeropad=True, add_message_bytewise=True):
@@ -29,7 +32,7 @@ class CrcInstances():
     def results(self, title='', full=False):
         checkresult=self.solver.check()
         if checkresult == z3.unsat:
-            raise Exception('no solution')
+            raise Nosolution('no solution')
         print('result:', checkresult)
         m = self.solver.model()
         polynomial_value=m[self.polynomial].as_long()

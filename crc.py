@@ -4,6 +4,7 @@ import binascii
 import sys
 import solvecrc
 import crctest
+import multiprocessing
 
 inputs = b"""
  0: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 00 ff 01 03 00 00 00 00 ff 00 00 00 00 ff e8 19
@@ -29,17 +30,17 @@ inputs = b"""
 20: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 14 ff 01 03 00 00 00 00 ff 00 00 00 00 ff 13 6f
 """
 
-messages=[]
+hans_messages=[]
+hans_crcs=[]
 
 for ip in inputs.split(b'\n'):
     fields=ip.split()
     if len(fields) < 3:
         continue
-    fields=fields[1:-2]
-    message_int=[int(x,16) for x in fields]
-    messages.append(message_int)
-
-#print(messages)
+    message_int=[int(x,16) for x in fields[1:-2]]
+    crc_int=[int(x,16) for x in fields[-2:]]
+    hans_messages.append(message_int)
+    hans_crcs.append(crc_int)
 
 # i used https://www.lammertbies.nl/comm/info/crc-calculation to generate some test vectors
 # i used the c code https://github.com/lammertb/libcrc to find all the parameters
@@ -72,33 +73,71 @@ if False:
         print('%-20s message [ %s ] mycrc %8x  testcrc %8x' % (crc_preset, hexdump(message), crcval, crctest.crctest(clname, bytes(message))))
     print()
 
-def do_test(crclen,polynomial,crcstart,crcxor,swapbytes,lsbfirst,zeropad,bytewise):
-    instances=solvecrc.CrcInstances(databyte_lsbfirst=lsbfirst, crclen=crclen, given_crcstart=crcstart, given_crcxor=crcxor, given_polynomial=polynomial, swapbytes=swapbytes, zeropad=zeropad, add_message_bytewise=bytewise)
-    print('adding instances')
-    for msg in messages:
-        instances.add_instance(given_message_bytes=msg, n_messagebytes=len(msg))
-    print('adding instances done; getting results')
-    polynomial_value, crcstart_value, crcxor_value, crcresults = instances.results()
-    print('results: polynomial %x, crcstart %x, crcxor %x, crc values %s' % (polynomial_value, crcstart_value, crcxor_value, hexdump(crcresults)))
+def do_test(crclen,crcstart,swapbytes,lsbfirst,zeropad,bytewise):
+    if False:
+        instances=solvecrc.CrcInstances(databyte_lsbfirst=lsbfirst, crclen=crclen, given_crcstart=crcstart, given_crcxor=crcxor, given_polynomial=polynomial, swapbytes=swapbytes, zeropad=zeropad, add_message_bytewise=bytewise)
+        print('adding instances')
+        for msg in hans_messages:
+            instances.add_instance(given_message_bytes=msg, n_messagebytes=len(msg))
+        print('adding instances done; getting results')
+        polynomial_value, crcstart_value, crcxor_value, crcresults = instances.results()
+        print('results: polynomial %x, crcstart %x, crcxor %x, crc values %s' % (polynomial_value, crcstart_value, crcxor_value, hexdump(crcresults)))
 
     print('now doing reverse mode')
     reverse_instances=solvecrc.CrcInstances(databyte_lsbfirst=lsbfirst, given_crcstart=crcstart, crclen=crclen, swapbytes=swapbytes, zeropad=zeropad, add_message_bytewise=bytewise)
     print('adding instances (reverse)')
-    for msg,realcrc in zip(messages,crcresults):
+
+    if False:
+      for msg,realcrc in zip(hans_messages,crcresults):
+          reverse_instances.add_instance(given_message_bytes=msg, n_messagebytes=len(msg), given_crcresult=realcrc)
+      print('adding instances done; getting results (reverse)')
+      solved_polynomial_value, solved_crcstart_value, solved_crcxor_value, crcresults = reverse_instances.results()
+      print('results: polynomial %x, crcstart %x, crcxor %x, crc values %s' % (solved_polynomial_value, solved_crcstart_value, solved_crcxor_value, hexdump(crcresults)))
+
+    for msg,crcarray in zip(hans_messages,hans_crcs):
+        realcrc=(crcarray[0] << 8) + crcarray[1]
+        assert realcrc >= 0
+        assert realcrc < 65536
+#        print('%s crc %04x' % (crcarray,realcrc))
         reverse_instances.add_instance(given_message_bytes=msg, n_messagebytes=len(msg), given_crcresult=realcrc)
     print('adding instances done; getting results (reverse)')
-    solved_polynomial_value, solved_crcstart_value, solved_crcxor_value, crcresults = reverse_instances.results()
-    print('results: polynomial %x, crcstart %x, crcxor %x, crc values %s' % (solved_polynomial_value, solved_crcstart_value, solved_crcxor_value, hexdump(crcresults)))
+    try:
+        solved_polynomial_value, solved_crcstart_value, solved_crcxor_value, crcresults = reverse_instances.results()
+        print('have results for params: crclen %d crcstart %x swapbytes %s lsbfirst %s zeropad %s bytewise %s' % (crclen,crcstart,swapbytes,lsbfirst,zeropad,bytewise))
+        print('results: polynomial %x, crcstart %x, crcxor %x, crc values %s' % (solved_polynomial_value, solved_crcstart_value, solved_crcxor_value, hexdump(crcresults)))
+    except solvecrc.Nosolution:
+        print('no results for params: crclen %d crcstart %x swapbytes %s lsbfirst %s zeropad %s bytewise %s' % (crclen,crcstart,swapbytes,lsbfirst,zeropad,bytewise))
 
-for crclen, polynomial in [ (16, 0xa001), (16, 0x1021), (16, 0x8408), (16,0xa6bc), (32, 0xEDB88320)]:
+ncpu=multiprocessing.cpu_count()
+print('using %d cpus' % ncpu)
+pool = multiprocessing.Pool(processes=ncpu)
+jobs=[]
+for bytewise in [True,False]:
+ for zeropad in [False,True]:
+#  for crclen, polynomial in [ (16, 0xa001), (16, 0x1021), (16, 0x8408), (16,0xa6bc), (32, 0xEDB88320)]:
+    crclen=16
     for crcstart in [0, (1 << crclen)-1, 0x1d0f, ]:
-        for crcxor in [0, (1 << crclen)-1, 0x1d0f, ]:
+#        for crcxor in [0, (1 << crclen)-1, 0x1d0f, ]:
             if crclen == 16:
                 swaps=[True,False]
             else:
                 swaps=[False]
             for swapbytes in swaps:
                 for lsbfirst in [True,False]:
-                    for zeropad in [True,False]:
-                        for bytewise in [True,False]:
-                            do_test(crclen,polynomial,crcstart,crcxor,swapbytes,lsbfirst,zeropad,bytewise)
+                            j=pool.apply_async(do_test,(crclen,crcstart,swapbytes,lsbfirst,zeropad,bytewise))
+                            jobs.append(j)
+print('started %d jobs' % len(jobs))
+jobs=set(jobs)
+while len(jobs) > 0:
+  obtained=set()
+  for j in jobs:
+    print('waiting for next job')
+    try:
+        res=j.get(timeout=900)
+        obtained.add(j)
+    except multiprocessing.context.TimeoutError:
+        print('timeout, going to next job')
+  print('completed a job cycle, obtained %d' % len(obtained))
+  jobs-=obtained
+  print('%d jobs remain' % len(jobs))
+
