@@ -29,6 +29,18 @@ inputs = b"""
 20: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 14 ff 01 03 00 00 00 00 ff 00 00 00 00 ff 13 6f
 """
 
+messages=[]
+
+for ip in inputs.split(b'\n'):
+    fields=ip.split()
+    if len(fields) < 3:
+        continue
+    fields=fields[1:-2]
+    message_int=[int(x,16) for x in fields]
+    messages.append(message_int)
+
+#print(messages)
+
 # i used https://www.lammertbies.nl/comm/info/crc-calculation to generate some test vectors
 # i used the c code https://github.com/lammertb/libcrc to find all the parameters
 crc_presets = {
@@ -46,7 +58,8 @@ crc_presets = {
 def hexdump(arr):
     return ' '.join(["%02x" % b for b in arr])
 
-for message in [ [ord('A')], list(b"123456789"), [ord('A')]*256 ]:
+if False:
+  for message in [ [ord('A')], list(b"123456789"), [ord('A')]*256 ]:
     print(message)
     for crc_preset in crc_presets:
         if '/' in crc_preset:
@@ -59,3 +72,21 @@ for message in [ [ord('A')], list(b"123456789"), [ord('A')]*256 ]:
         print('%-20s message [ %s ] mycrc %8x  testcrc %8x' % (crc_preset, hexdump(message), crcval, crctest.crctest(clname, bytes(message))))
     print()
 
+def do_test(crclen,polynomial,crcstart,crcxor,swapbytes,lsbfirst,zeropad,bytewise):
+    for msg in messages:
+        crctest_cl = solvecrc.CrcInstance(given_message_bytes=msg, n_messagebytes=len(msg), databyte_lsbfirst=lsbfirst, crclen=crclen, given_crcstart=crcstart, given_crcxor=crcxor, given_polynomial=polynomial, swapbytes=swapbytes, zeropad=zeropad, add_message_bytewise=bytewise)
+        crcval = crctest_cl.results('test', full=False)
+        print('crc %x' % crcval)
+
+for crclen, polynomial in [ (16, 0xa001), (16, 0x1021), (16, 0x8408), (16,0xa6bc), (32, 0xEDB88320)]:
+    for crcstart in [0, (1 << crclen)-1, 0x1d0f, ]:
+        for crcxor in [0, (1 << crclen)-1, 0x1d0f, ]:
+            if crclen == 16:
+                swaps=[True,False]
+            else:
+                swaps=[False]
+            for swapbytes in swaps:
+                for lsbfirst in [True,False]:
+                    for zeropad in [True,False]:
+                        for bytewise in [True,False]:
+                            do_test(crclen,polynomial,crcstart,crcxor,swapbytes,lsbfirst,zeropad,bytewise)
