@@ -1,2 +1,0 @@
-virtualenv-3.7 -p python3.7 env
-./env/bin/pip install -r requirements.txt
