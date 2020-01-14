@@ -1,13 +1,7 @@
 #!/usr/bin/python3
 
-import binascii
 import brainsmoke
 import sys
-import solvecrc
-import crcx
-import crctest
-import multiprocessing
-import inet_checksum
 
 inputs = b"""
  0: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 00 ff 01 03 00 00 00 00 ff 00 00 00 00 ff e8 19
@@ -36,7 +30,6 @@ inputs = b"""
 hans_messages=[]
 hans_crcs=[]
 
-
 def hexdump(arr):
     return ' '.join(["%02x" % b for b in arr])
 
@@ -49,12 +42,10 @@ for ip in inputs.split(b'\n'):
         continue
     message_int=[int(x,16) for x in fields[1:-2]]
     crc_int=[int(x,16) for x in fields[-2:]]
+
     hans_messages.append(message_int)
     hans_crcs.append(crc_int)
-    #print(hexdump(message_int), 'inet checksum', inet_checksum(message_int))
-#    crc_int=crctest.crctest('crc-32', bytes(message_int))
-#    crcstr='%04x' % (crc_int & 0xffff)
-#    crc_int=[(crc_int>>8) & 0xff, crc_int & 0xff]
+
     my_crc_int=brainsmoke.calc_rev_crc16(message_int[0:-1])
     my_crc_int=[(my_crc_int>>8) & 0xff, my_crc_int & 0xff]
 
