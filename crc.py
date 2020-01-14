@@ -3,8 +3,10 @@
 import binascii
 import sys
 import solvecrc
+import crcx
 import crctest
 import multiprocessing
+import inet_checksum
 
 inputs = b"""
  0: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 00 ff 01 03 00 00 00 00 ff 00 00 00 00 ff e8 19
@@ -33,6 +35,13 @@ inputs = b"""
 hans_messages=[]
 hans_crcs=[]
 
+
+def hexdump(arr):
+    return ' '.join(["%02x" % b for b in arr])
+
+def bindump(arr):
+    return ' '.join(["{0:08b}".format(b) for b in arr])
+
 for ip in inputs.split(b'\n'):
     fields=ip.split()
     if len(fields) < 3:
@@ -41,6 +50,32 @@ for ip in inputs.split(b'\n'):
     crc_int=[int(x,16) for x in fields[-2:]]
     hans_messages.append(message_int)
     hans_crcs.append(crc_int)
+    #print(hexdump(message_int), 'inet checksum', inet_checksum(message_int))
+#    crc_int=crctest.crctest('crc-32', bytes(message_int))
+#    crcstr='%04x' % (crc_int & 0xffff)
+#    crc_int=[(crc_int>>8) & 0xff, crc_int & 0xff]
+    print(hexdump(message_int), 'checksum', bindump(crc_int))
+
+def xor(a,b):
+    assert len(a) == len(b)
+    return [a[i]^b[i] for i in range(len(a))]
+
+print()
+
+for m1 in range(len(hans_messages)-1):
+  for m2 in range(len(hans_messages)-1):
+    if m1 <= m2:
+      continue
+    xormsg=xor(hans_messages[m1],hans_messages[m2])
+    xorcrc=xor(hans_crcs[m1],hans_crcs[m2])
+    my_crc_int=crctest.crctest('my-crc-ccitt-xmodem', bytes(xormsg))
+    my_crc_int=[(my_crc_int>>8) & 0xff, my_crc_int & 0xff]
+    print(hexdump(xormsg), 'checksum', hexdump(xorcrc), 'reverse-xmodem', hexdump(my_crc_int))
+    if my_crc_int != xorcrc:
+        print('no match')
+        sys.exit(0)
+
+sys.exit(0)
 
 # i used https://www.lammertbies.nl/comm/info/crc-calculation to generate some test vectors
 # i used the c code https://github.com/lammertb/libcrc to find all the parameters
@@ -55,9 +90,6 @@ crc_presets = {
 'crc-dnp':            {'crclen': 16, 'given_polynomial':     0xA6BC, 'given_crcstart':     0x0000, 'given_crcxor':     0xffff, 'swapbytes': True,  'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True},
 'crc-32':             {'crclen': 32, 'given_polynomial': 0xEDB88320, 'given_crcstart': 0xFFFFFFFF, 'given_crcxor': 0xffffffff, 'swapbytes': False, 'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True },
 }
-
-def hexdump(arr):
-    return ' '.join(["%x" % b for b in arr])
 
 if False:
   for message in [ [ord('A')], list(b"123456789"), [ord('A')]*256 ]:

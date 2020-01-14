@@ -5,6 +5,7 @@ from PyCRC.CRC16Kermit import CRC16Kermit
 from PyCRC.CRC16SICK import CRC16SICK
 from PyCRC.CRC32 import CRC32
 from PyCRC.CRCCCITT import CRCCCITT
+import crcx
 
 class mycrc8:
     def __init__(self):
@@ -20,6 +21,7 @@ classdict =  {
 'crc16-modbus': CRC16(modbus_flag=True),
 'crc16-sick': CRC16SICK(),
 'crc-ccitt-xmodem': CRCCCITT(version='XModem'),
+'my-crc-ccitt-xmodem': crcx.MyCRCCCITT(),
 'crc-ccitt-ffff': CRCCCITT(version='FFFF'),
 'crc-ccitt-1d0f': CRCCCITT(version='1D0F'),
 'crc-ccitt-kermit': CRC16Kermit(),
