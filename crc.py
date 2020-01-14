@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import binascii
+import brainsmoke
 import sys
 import solvecrc
 import crcx
@@ -54,122 +55,13 @@ for ip in inputs.split(b'\n'):
 #    crc_int=crctest.crctest('crc-32', bytes(message_int))
 #    crcstr='%04x' % (crc_int & 0xffff)
 #    crc_int=[(crc_int>>8) & 0xff, crc_int & 0xff]
-    print(hexdump(message_int), 'checksum', bindump(crc_int))
-
-def xor(a,b):
-    assert len(a) == len(b)
-    return [a[i]^b[i] for i in range(len(a))]
-
-print()
-
-for m1 in range(len(hans_messages)-1):
-  for m2 in range(len(hans_messages)-1):
-    if m1 <= m2:
-      continue
-    xormsg=xor(hans_messages[m1],hans_messages[m2])
-    xorcrc=xor(hans_crcs[m1],hans_crcs[m2])
-    my_crc_int=crctest.crctest('my-crc-ccitt-xmodem', bytes(xormsg))
+    my_crc_int=brainsmoke.calc_rev_crc16(message_int[0:-1])
     my_crc_int=[(my_crc_int>>8) & 0xff, my_crc_int & 0xff]
-    print(hexdump(xormsg), 'checksum', hexdump(xorcrc), 'reverse-xmodem', hexdump(my_crc_int))
-    if my_crc_int != xorcrc:
-        print('no match')
+
+    print(hexdump(message_int), 'checksum', hexdump(crc_int), 'brainsmoke-checksum', hexdump(my_crc_int))
+
+    if my_crc_int != crc_int:
+        print('no match, %s %s', my_crc_int, crc_int)
         sys.exit(0)
 
-sys.exit(0)
-
-# i used https://www.lammertbies.nl/comm/info/crc-calculation to generate some test vectors
-# i used the c code https://github.com/lammertb/libcrc to find all the parameters
-crc_presets = {
-        'crc16':              {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True },
-'crc16-modbus':       {'crclen': 16, 'given_polynomial':     0xA001, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True },
-'crc-ccitt-xmodem':   {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': False, 'zeropad': False, 'add_message_bytewise': True},
-'crc-ccitt-ffff/nopad':     {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': False, 'zeropad': False},
-'crc-ccitt-ffff/pad-bitwise':       {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0xffff, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': False, 'zeropad': True, 'add_message_bytewise': False},
-'crc-ccitt-1d0f':     {'crclen': 16, 'given_polynomial':     0x1021, 'given_crcstart':     0x1d0f, 'given_crcxor':     0x0000, 'swapbytes': False, 'databyte_lsbfirst': False, 'zeropad': False},
-        'crc-ccitt-kermit':   {'crclen': 16, 'given_polynomial':     0x8408, 'given_crcstart':     0x0000, 'given_crcxor':     0x0000, 'swapbytes': True,  'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True},
-'crc-dnp':            {'crclen': 16, 'given_polynomial':     0xA6BC, 'given_crcstart':     0x0000, 'given_crcxor':     0xffff, 'swapbytes': True,  'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True},
-'crc-32':             {'crclen': 32, 'given_polynomial': 0xEDB88320, 'given_crcstart': 0xFFFFFFFF, 'given_crcxor': 0xffffffff, 'swapbytes': False, 'databyte_lsbfirst': True, 'zeropad': False, 'add_message_bytewise': True },
-}
-
-if False:
-  for message in [ [ord('A')], list(b"123456789"), [ord('A')]*256 ]:
-    print(message)
-    for crc_preset in crc_presets:
-        if '/' in crc_preset:
-            clname=crc_preset.split('/')[0]
-        else:
-            clname=crc_preset
-        config = crc_presets[crc_preset]
-        crctest_cl = solvecrc.CrcInstance(given_message_bytes=message, n_messagebytes=len(message), **config)
-        crcval = crctest_cl.results(crc_preset, full=False)
-        print('%-20s message [ %s ] mycrc %8x  testcrc %8x' % (crc_preset, hexdump(message), crcval, crctest.crctest(clname, bytes(message))))
-    print()
-
-def do_test(crclen,crcstart,swapbytes,lsbfirst,zeropad,bytewise):
-    if False:
-        instances=solvecrc.CrcInstances(databyte_lsbfirst=lsbfirst, crclen=crclen, given_crcstart=crcstart, given_crcxor=crcxor, given_polynomial=polynomial, swapbytes=swapbytes, zeropad=zeropad, add_message_bytewise=bytewise)
-        print('adding instances')
-        for msg in hans_messages:
-            instances.add_instance(given_message_bytes=msg, n_messagebytes=len(msg))
-        print('adding instances done; getting results')
-        polynomial_value, crcstart_value, crcxor_value, crcresults = instances.results()
-        print('results: polynomial %x, crcstart %x, crcxor %x, crc values %s' % (polynomial_value, crcstart_value, crcxor_value, hexdump(crcresults)))
-
-    print('now doing reverse mode')
-    reverse_instances=solvecrc.CrcInstances(databyte_lsbfirst=lsbfirst, given_crcstart=crcstart, crclen=crclen, swapbytes=swapbytes, zeropad=zeropad, add_message_bytewise=bytewise)
-    print('adding instances (reverse)')
-
-    if False:
-      for msg,realcrc in zip(hans_messages,crcresults):
-          reverse_instances.add_instance(given_message_bytes=msg, n_messagebytes=len(msg), given_crcresult=realcrc)
-      print('adding instances done; getting results (reverse)')
-      solved_polynomial_value, solved_crcstart_value, solved_crcxor_value, crcresults = reverse_instances.results()
-      print('results: polynomial %x, crcstart %x, crcxor %x, crc values %s' % (solved_polynomial_value, solved_crcstart_value, solved_crcxor_value, hexdump(crcresults)))
-
-    for msg,crcarray in zip(hans_messages,hans_crcs):
-        realcrc=(crcarray[0] << 8) + crcarray[1]
-        assert realcrc >= 0
-        assert realcrc < 65536
-#        print('%s crc %04x' % (crcarray,realcrc))
-        reverse_instances.add_instance(given_message_bytes=msg, n_messagebytes=len(msg), given_crcresult=realcrc)
-    print('adding instances done; getting results (reverse)')
-    try:
-        solved_polynomial_value, solved_crcstart_value, solved_crcxor_value, crcresults = reverse_instances.results()
-        print('have results for params: crclen %d crcstart %x swapbytes %s lsbfirst %s zeropad %s bytewise %s' % (crclen,crcstart,swapbytes,lsbfirst,zeropad,bytewise))
-        print('results: polynomial %x, crcstart %x, crcxor %x, crc values %s' % (solved_polynomial_value, solved_crcstart_value, solved_crcxor_value, hexdump(crcresults)))
-    except solvecrc.Nosolution:
-        print('no results for params: crclen %d crcstart %x swapbytes %s lsbfirst %s zeropad %s bytewise %s' % (crclen,crcstart,swapbytes,lsbfirst,zeropad,bytewise))
-
-ncpu=multiprocessing.cpu_count()
-print('using %d cpus' % ncpu)
-pool = multiprocessing.Pool(processes=ncpu)
-jobs=[]
-for bytewise in [True,False]:
- for zeropad in [False,True]:
-#  for crclen, polynomial in [ (16, 0xa001), (16, 0x1021), (16, 0x8408), (16,0xa6bc), (32, 0xEDB88320)]:
-    crclen=16
-    for crcstart in [0, (1 << crclen)-1, 0x1d0f, ]:
-#        for crcxor in [0, (1 << crclen)-1, 0x1d0f, ]:
-            if crclen == 16:
-                swaps=[True,False]
-            else:
-                swaps=[False]
-            for swapbytes in swaps:
-                for lsbfirst in [True,False]:
-                            j=pool.apply_async(do_test,(crclen,crcstart,swapbytes,lsbfirst,zeropad,bytewise))
-                            jobs.append(j)
-print('started %d jobs' % len(jobs))
-jobs=set(jobs)
-while len(jobs) > 0:
-  obtained=set()
-  for j in jobs:
-    print('waiting for next job')
-    try:
-        res=j.get(timeout=900)
-        obtained.add(j)
-    except multiprocessing.context.TimeoutError:
-        print('timeout, going to next job')
-  print('completed a job cycle, obtained %d' % len(obtained))
-  jobs-=obtained
-  print('%d jobs remain' % len(jobs))
-
+print('all matches are good')
