@@ -25,6 +25,7 @@ inputs = b"""
 18: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 12 ff 01 03 00 00 00 00 ff 00 00 00 00 ff c8 81
 19: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 13 ff 01 03 00 00 00 00 ff 00 00 00 00 ff 1c ab
 20: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 14 ff 01 03 00 00 00 00 ff 00 00 00 00 ff 13 6f
+21: 00 00 00 00 00 ff 41 04 8c 55 4b 00 16 ff 00 01 00 00 00 15 ff 01 03 00 00 00 00 ff 00 00 00 00 ff 00 00
 """
 
 hans_messages=[]
@@ -51,8 +52,10 @@ for ip in inputs.split(b'\n'):
 
     print(hexdump(message_int), 'checksum', hexdump(crc_int), 'brainsmoke-checksum', hexdump(my_crc_int))
 
-    if my_crc_int != crc_int:
-        print('no match, %s %s', my_crc_int, crc_int)
-        sys.exit(0)
+    if crc_int != my_crc_int:
+        if crc_int != [0,0]:
+            print('no match')
+            sys.exit(0)
+        print('ok, missing original crc')
 
 print('all matches are good')
