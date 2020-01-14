@@ -36,5 +36,4 @@ if False:
 
     print ( calc_rev_crc16(b"123456789abcdef", 0x1189) )
     print ( calc_rev_crc16_table(b"123456789abcdef", table) )
-    print ( calc_rev_crc16_table(b"123456789abcdef", tab1189) )
 
